@@ -4,6 +4,7 @@ INDEX_DIR = "IndexFiles.index"
 
 import sys, os, lucene, threading, time
 from datetime import datetime
+import gzip
 
 from java.nio.file import Paths
 from org.apache.lucene.analysis.miscellaneous import LimitTokenCountAnalyzer
@@ -34,7 +35,9 @@ class Ticker(object):
             time.sleep(1.0)
 
 class IndexFiles(object):
-    """Usage: python IndexFiles <doc_directory>"""
+    """Usage: python IndexFiles <doc_directory>
+        > python samples/IndexFiles.py ../a1-data/AP
+    """
 
     def __init__(self, root, storeDir, analyzer):
 
@@ -70,14 +73,19 @@ class IndexFiles(object):
 
         for root, dirnames, filenames in os.walk(root):
             for filename in filenames:
-                if not filename.endswith('.txt'):
-                    continue
-                print ("adding", filename)
+
                 try:
+                    # filename=='AP881210.gz', open it 
                     path = os.path.join(root, filename)
-                    file = open(path)
-                    contents = str(file.read()+'iso-8859-1')
-                    file.close()
+
+                    f=gzip.open(path,'rb')
+                    bytes_content=f.read()
+                    print ("adding", filename)
+
+                    # and convert bytes to strings
+                    contents = bytes_content.decode("utf-8") 
+
+                    f.close()
                     doc = Document()
                     doc.add(Field("name", filename, t1))
                     doc.add(Field("path", root, t1))
