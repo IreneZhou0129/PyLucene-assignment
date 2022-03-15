@@ -130,3 +130,4 @@ dmypy.json
 
 # testing data
 samples/IndexFiles.index
+a1/indexing.ipynb
