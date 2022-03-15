@@ -79,6 +79,9 @@ class IndexFiles(object):
                     path = os.path.join(root, filename)
 
                     f=gzip.open(path,'rb')
+
+                    # TODO Need to extract document_no:
+                    # e.g., <DOCNO> AP881210-0148
                     bytes_content=f.read()
                     print ("adding", filename)
 
@@ -86,9 +89,12 @@ class IndexFiles(object):
                     contents = bytes_content.decode("utf-8") 
 
                     f.close()
+                    # breakpoint()
                     doc = Document()
                     doc.add(Field("name", filename, t1))
                     doc.add(Field("path", root, t1))
+                    doc.add(Field("docno", docno, t1))
+
                     if len(contents) > 0:
                         doc.add(Field("contents", contents, t2))
                     else:
