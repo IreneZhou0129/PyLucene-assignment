@@ -2,7 +2,7 @@
 
 INDEX_DIR = "IndexFiles.index"
 
-import sys, os, lucene, threading, time
+import sys, os, lucene, threading, time, re
 from datetime import datetime
 import gzip
 
@@ -78,30 +78,41 @@ class IndexFiles(object):
                     # filename=='AP881210.gz', open it 
                     path = os.path.join(root, filename)
 
-                    f=gzip.open(path,'rb')
+                    # read .gz file
+                    f = gzip.open(path,'rb')
 
-                    # TODO Need to extract document_no:
-                    # e.g., <DOCNO> AP881210-0148
+                    # Need to extract document_no, e.g., <DOCNO> AP881210-0148
                     bytes_content=f.read()
-                    print ("adding", filename)
 
-                    # and convert bytes to strings
+                    # convert bytes to strings
                     contents = bytes_content.decode("utf-8") 
 
-                    f.close()
-                    # breakpoint()
-                    doc = Document()
-                    doc.add(Field("name", filename, t1))
-                    doc.add(Field("path", root, t1))
-                    doc.add(Field("docno", docno, t1))
+                    try:
+                        # each item is a doc
+                        docs_list = re.split('</DOC>\n\s*<DOC>', contents)
+                        doc_id_pattern = '.*\<DOCNO\>(?P<doc_id>.*)\<\/DOCNO\>.*'
+                        doc_id = 0
 
+                        for doc in docs_list:
+                            doc_id_found = re.search(doc_id_pattern, doc)
+                            if doc_id_found:
+                                doc_id = doc_id_found.group('doc_id')
+                            
+                            doc = Document()
+                            doc.add(Field("name", filename, t1))
+                            doc.add(Field("path", root, t1))
+                            doc.add(Field("docno", doc_id, t1))
+                    except Exception as e:
+                        print(f"Failed with error: {e}")
+                        break
                     if len(contents) > 0:
                         doc.add(Field("contents", contents, t2))
-                    else:
-                        print ("warning: no content in %s" % filename)
+
+                    f.close()
+
                     writer.addDocument(doc)
                 except Exception as e:
-                    print ("Failed in indexDocs:", e)
+                    print (f"File {filename} failed in indexDocs:", e)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:

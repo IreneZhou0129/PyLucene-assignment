@@ -104,12 +104,10 @@ def run(searcher, analyzer, query_paths, topics, model):
             # Lines of results_file are of the form
             # 030  Q0  ZF08-175-870  0   4238   prise1
             # qid iter   docno      rank  sim   run_id
-            
-            doc_name = doc.get('name').split('.')[0]
-            breakpoint()
+            docno = doc.get('docno').strip()
 
-            log = f"{q_id}  0  {doc_name}   {rank}  {scoreDoc.score}    run_id"
-            print(log)
+            log = f"{q_id}  0  {docno}   {rank}  {scoreDoc.score}    run_id"
+            # print(log)
 
             rank += 1
             
@@ -130,6 +128,7 @@ def run(searcher, analyzer, query_paths, topics, model):
 if __name__ == '__main__':
     lucene.initVM(vmargs=['-Djava.awt.headless=true'])
     print( 'lucene: '+lucene.VERSION)
+    model=None
     # model = input("vsm, bm25 or dirichlet: ")
     # topics = input("1-50, 51-100 or 101-150: ")
 
