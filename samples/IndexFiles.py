@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-INDEX_DIR = "IndexFiles.index"
+# INDEX_DIR = "IndexFiles.index"
 
 import sys, os, lucene, threading, time, re
 from datetime import datetime
@@ -9,7 +9,8 @@ import gzip
 from java.nio.file import Paths
 from org.apache.lucene.analysis.miscellaneous import LimitTokenCountAnalyzer
 from org.apache.lucene.analysis.standard import StandardAnalyzer
-from org.apache.lucene.document import Document, Field, FieldType
+from org.apache.lucene.document import Document, Field, FieldType,\
+                                        StoredField, StringField, TextField
 from org.apache.lucene.index import \
     FieldInfo, IndexWriter, IndexWriterConfig, IndexOptions
 from org.apache.lucene.store import SimpleFSDirectory
@@ -67,9 +68,18 @@ class IndexFiles(object):
         t1.setIndexOptions(IndexOptions.DOCS_AND_FREQS)
 
         t2 = FieldType()
-        t2.setStored(False)
+        t2.setStored(True)
         t2.setTokenized(True)
         t2.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS)
+
+        t3 = FieldType()
+        t3.setStored(False)
+        t3.setTokenized(True)
+        t3.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS)
+        
+
+        # to avoid duplicate docs error
+        doc_id_list = []
 
         for root, dirnames, filenames in os.walk(root):
             for filename in filenames:
@@ -85,7 +95,8 @@ class IndexFiles(object):
                     bytes_content=f.read()
 
                     # convert bytes to strings
-                    contents = bytes_content.decode("utf-8") 
+                    # contents = bytes_content.decode("utf-8") 
+                    contents = bytes_content.decode("ISO-8859-1") 
 
                     try:
                         # each item is a doc
@@ -93,38 +104,51 @@ class IndexFiles(object):
                         doc_id_pattern = '.*\<DOCNO\>(?P<doc_id>.*)\<\/DOCNO\>.*'
                         doc_id = 0
 
-                        for doc in docs_list:
-                            doc_id_found = re.search(doc_id_pattern, doc)
+                        for doc_item in docs_list:
+                            doc_id_found = re.search(doc_id_pattern, doc_item)
                             if doc_id_found:
                                 doc_id = doc_id_found.group('doc_id')
+                        
+                            else:
+                                print(f"Unable to find doc_id in {filename}\nDoc: {doc_item}")
+                                breakpoint()
                             
                             doc = Document()
-                            doc.add(Field("name", filename, t1))
-                            doc.add(Field("path", root, t1))
-                            doc.add(Field("docno", doc_id, t1))
+                            # doc.add(Field("name", filename, t2))
+                            # doc.add(Field("path", root, t2))
+                            doc.add(Field("docno", doc_id, t2))
+                            doc.add(Field("contents", doc_item, t3))
+                            writer.addDocument(doc)
                     except Exception as e:
                         print(f"Failed with error: {e}")
                         break
-                    if len(contents) > 0:
-                        doc.add(Field("contents", contents, t2))
 
                     f.close()
 
-                    writer.addDocument(doc)
                 except Exception as e:
                     print (f"File {filename} failed in indexDocs:", e)
+        
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print (IndexFiles.__doc__)
         sys.exit(1)
+
+    # set INDEX_DIR in shell file
+    INDEX_DIR = sys.argv[2]
+
+    using_stopwords = False
+    if '-stop' in sys.argv:
+        using_stopwords = True
+
     lucene.initVM(vmargs=['-Djava.awt.headless=true'])
     print ('lucene', lucene.VERSION)
     start = datetime.now()
     try:
         base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-        IndexFiles(sys.argv[1], os.path.join(base_dir, INDEX_DIR),
-                   StandardAnalyzer())
+        IndexFiles(sys.argv[1], \
+                    os.path.join(base_dir, INDEX_DIR),\
+                    StandardAnalyzer())
         end = datetime.now()
         print (end - start)
     except Exception as e:
