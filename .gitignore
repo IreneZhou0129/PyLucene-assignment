@@ -129,6 +129,6 @@ dmypy.json
 .pyre/
 
 # testing data
-samples/IndexFiles.index
+samples/IndexFiles*.index
 a1/*
 samples/old_IndexFiles.index/

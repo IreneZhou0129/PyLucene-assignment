@@ -7,8 +7,11 @@ from datetime import datetime
 import gzip
 
 from java.nio.file import Paths
+from java.io import StringReader
+
 from org.apache.lucene.analysis.miscellaneous import LimitTokenCountAnalyzer
 from org.apache.lucene.analysis.standard import StandardAnalyzer
+from org.apache.lucene.analysis import StopFilter
 from org.apache.lucene.document import Document, Field, FieldType,\
                                         StoredField, StringField, TextField
 from org.apache.lucene.index import \
@@ -40,18 +43,28 @@ class IndexFiles(object):
         > python samples/IndexFiles.py ../a1-data/AP
     """
 
-    def __init__(self, root, storeDir, analyzer):
+    def __init__(self, root, storeDir, analyzer, using_stopwords):
 
         if not os.path.exists(storeDir):
             os.mkdir(storeDir)
 
         store = SimpleFSDirectory(Paths.get(storeDir))
         analyzer = LimitTokenCountAnalyzer(analyzer, 1048576)
+
+        stopWords_filename = '/Users/xiaoxinzhou/Documents/2022_classes/a1-data/stop_words.txt'
+        stopWords_file = open(stopWords_filename, 'r')
+        stopWords = [line.replace('\n','') for line in stopWords_file.readlines()]
+        stopWordsSet = StopFilter.makeStopSet(stopWords)
+        analyzer = StandardAnalyzer(stopWordsSet)
+
         config = IndexWriterConfig(analyzer)
         config.setOpenMode(IndexWriterConfig.OpenMode.CREATE)
         writer = IndexWriter(store, config)
 
-        self.indexDocs(root, writer)
+
+        self.indexDocs(root, writer, using_stopwords)
+
+
         ticker = Ticker()
         print ('commit index')
         threading.Thread(target=ticker.run).start()
@@ -60,7 +73,7 @@ class IndexFiles(object):
         ticker.tick = False
         print ('done')
 
-    def indexDocs(self, root, writer):
+    def indexDocs(self, root, writer, using_stopwords):
 
         t1 = FieldType()
         t1.setStored(True)
@@ -76,10 +89,6 @@ class IndexFiles(object):
         t3.setStored(False)
         t3.setTokenized(True)
         t3.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS)
-        
-
-        # to avoid duplicate docs error
-        doc_id_list = []
 
         for root, dirnames, filenames in os.walk(root):
             for filename in filenames:
@@ -95,7 +104,6 @@ class IndexFiles(object):
                     bytes_content=f.read()
 
                     # convert bytes to strings
-                    # contents = bytes_content.decode("utf-8") 
                     contents = bytes_content.decode("ISO-8859-1") 
 
                     try:
@@ -114,8 +122,6 @@ class IndexFiles(object):
                                 breakpoint()
                             
                             doc = Document()
-                            # doc.add(Field("name", filename, t2))
-                            # doc.add(Field("path", root, t2))
                             doc.add(Field("docno", doc_id, t2))
                             doc.add(Field("contents", doc_item, t3))
                             writer.addDocument(doc)
@@ -148,7 +154,8 @@ if __name__ == '__main__':
         base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
         IndexFiles(sys.argv[1], \
                     os.path.join(base_dir, INDEX_DIR),\
-                    StandardAnalyzer())
+                    StandardAnalyzer(),\
+                    using_stopwords)
         end = datetime.now()
         print (end - start)
     except Exception as e:

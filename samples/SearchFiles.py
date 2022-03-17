@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-
-INDEX_DIR = "IndexFiles.index"
 PATH_PREFIX = "/Users/xiaoxinzhou/Documents/2022_classes"
 
 import sys, os, lucene, re, time
@@ -69,7 +67,7 @@ def get_queries(text_file):
     
     return queries
 
-def run(searcher, analyzer, query_paths, topics, model):
+def run(searcher, analyzer, query_paths, topics, model, using_stopwords):
     """
 
     :param query_paths: A list of paths. 
@@ -80,11 +78,29 @@ def run(searcher, analyzer, query_paths, topics, model):
     start = time.time()
 
     # write to a text file
-    result_filename = f'a1/{model}_{topics}_result.txt'
+    # file naming
+    fn = {
+        'topics':{
+            '1-50':'a',
+            '51-100':'b',
+            '101-150':'c',
+        },
+        'model':{
+            'vsm':'i',
+            'bm25':'ii',
+            'dirichlet':'iii'
+        }
+    }
+    
+    fn_topics = fn['topics'][topics]
+    fn_model = fn['model'][model]
+    no_stopword = '1' if not(using_stopwords) else '2'
+
+    result_filename = f'PyLucene-assignment/a1/{no_stopword}-{fn_topics}-{fn_model}.txt'
     f = open(result_filename, 'a')
 
     # record model statistics
-    model_stats = open(f'a1/model_stats.txt', 'a')
+    model_stats = open(f'PyLucene-assignment/a1/model_stats.txt', 'a')
 
     # select topics
     topics_paths = {
@@ -141,9 +157,9 @@ def run(searcher, analyzer, query_paths, topics, model):
     f.close()
 
     end = time.time()
-    print(f"Done model {model}. \nRunning process takes {end-start}")
+    print(f"Done model {model} with topics {topics}. using_stopwords-{using_stopwords} \nRunning process takes {end-start}")
     
-    model_stats.write(f'{datetime.now()}  Model: {model}       Topics:{topics}        Running time: {end-start} seconds.\n')
+    model_stats.write(f'{datetime.now()}  {no_stopword}-{fn_topics}-{fn_model}        Running time: {end-start} seconds.\n')
     model_stats.close()
         
 
@@ -154,12 +170,12 @@ if __name__ == '__main__':
     ########################
     # user defined 
     ########################
-    model = 'vsm'
-    # model = 'bm25'
-    # model = 'dirichlet'
-    topics = '1-50'
-    # topics = '51-100'
-    # topics = '101-150'
+    model = sys.argv[1]
+    topics = sys.argv[2]
+    INDEX_DIR = sys.argv[3]
+    using_stopwords = False
+    if '-stop' in sys.argv:
+        using_stopwords = True
 
     query_paths = [f'{PATH_PREFIX}/a1-data/topics.1-50.txt',
                 f'{PATH_PREFIX}/a1-data/topics.51-100.txt',
@@ -171,14 +187,12 @@ if __name__ == '__main__':
     ########################
     base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
     directory = SimpleFSDirectory(Paths.get(os.path.join(base_dir, INDEX_DIR)))
-    
     searcher = IndexSearcher(DirectoryReader.open(directory))
 
     ########################
     # set retrieval model
     ########################
     # tf-idf is default scheme: https://lists.archive.carbon60.com/lucene/java-user/201216
-
     if model == 'bm25':
         searcher.setSimilarity(BM25Similarity())
     elif model == 'dirichlet':
@@ -190,11 +204,5 @@ if __name__ == '__main__':
         
     analyzer = StandardAnalyzer()
     
-    run(searcher, analyzer, query_paths, topics, model)
+    run(searcher, analyzer, query_paths, topics, model, using_stopwords)
     del searcher
-
-
-# run trec evaluation:
-# 1. cd /trec_eval-9.0.7
-# 2. 
-# ./trec_eval '/Users/xiaoxinzhou/Documents/2022_classes/a1-data/qrels.1-50.AP8890' '/Users/xiaoxinzhou/Documents/2022_classes/PyLucene-assignment/a1/default_settings/vsm_1-50_result.txt'
