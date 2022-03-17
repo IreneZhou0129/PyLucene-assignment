@@ -28,7 +28,7 @@
 
 import sys, os, lucene
 from datetime import datetime
-from IndexFiles import IndexFiles
+# from IndexFiles import IndexFiles
 
 from org.apache.lucene.analysis import LowerCaseFilter, StopFilter
 from org.apache.lucene.analysis.en import PorterStemFilter, EnglishAnalyzer
@@ -38,29 +38,40 @@ from org.apache.pylucene.analysis import PythonAnalyzer
 
 class PorterStemmerAnalyzer(PythonAnalyzer):
 
-    def createComponents(self, fieldName):
+    def createComponents(self, fieldName, using_stopwords=False):
+        print('running creatComponents')
 
         source = StandardTokenizer()
         filter = LowerCaseFilter(source)
         filter = PorterStemFilter(filter)
-        filter = StopFilter(filter, EnglishAnalyzer.ENGLISH_STOP_WORDS_SET)
+
+        if using_stopwords:
+            print(f"using_stopwords is {using_stopwords} in PorterStemmerAnalyzer")
+            stopWords_filename = '/Users/xiaoxinzhou/Documents/2022_classes/a1-data/stop_words.txt'
+            stopWords_file = open(stopWords_filename, 'r')
+            stopWords = [line.replace('\n','') for line in stopWords_file.readlines()]
+            stopWordsSet = StopFilter.makeStopSet(stopWords)
+            
+            # filter = StopFilter(filter, EnglishAnalyzer.ENGLISH_STOP_WORDS_SET)
+            filter = StopFilter(filter, stopWordsSet)
 
         return self.TokenStreamComponents(source, filter)
 
     def initReader(self, fieldName, reader):
+        print('running initReader')
         return reader
 
 
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print IndexFiles.__doc__
-        sys.exit(1)
-    lucene.initVM(vmargs=['-Djava.awt.headless=true'])
-    print 'lucene', lucene.VERSION
-    start = datetime.now()
-    try:
-        IndexFiles(sys.argv[1], "index", PorterStemmerAnalyzer())
-        end = datetime.now()
-        print end - start
-    except Exception, e:
-        print "Failed: ", e
+# if __name__ == '__main__':
+    # if len(sys.argv) < 2:
+    #     print IndexFiles.__doc__
+    #     sys.exit(1)
+    # lucene.initVM(vmargs=['-Djava.awt.headless=true'])
+    # # print 'lucene', lucene.VERSION
+    # start = datetime.now()
+    # try:
+    #     IndexFiles(sys.argv[1], "index", PorterStemmerAnalyzer())
+    #     end = datetime.now()
+    #     print end - start
+    # except Exception, e:
+    #     print "Failed: ", e

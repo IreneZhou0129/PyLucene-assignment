@@ -6,6 +6,8 @@ import sys, os, lucene, threading, time, re
 from datetime import datetime
 import gzip
 
+from PorterStemmerAnalyzer import PorterStemmerAnalyzer
+
 from java.nio.file import Paths
 from java.io import StringReader
 
@@ -43,7 +45,7 @@ class IndexFiles(object):
         > python samples/IndexFiles.py ../a1-data/AP
     """
 
-    def __init__(self, root, storeDir, analyzer, using_stopwords):
+    def __init__(self, root, storeDir, analyzer, using_stopwords, porter_stemmer):
 
         if not os.path.exists(storeDir):
             os.mkdir(storeDir)
@@ -51,18 +53,24 @@ class IndexFiles(object):
         store = SimpleFSDirectory(Paths.get(storeDir))
         analyzer = LimitTokenCountAnalyzer(analyzer, 1048576)
 
-        stopWords_filename = '/Users/xiaoxinzhou/Documents/2022_classes/a1-data/stop_words.txt'
-        stopWords_file = open(stopWords_filename, 'r')
-        stopWords = [line.replace('\n','') for line in stopWords_file.readlines()]
-        stopWordsSet = StopFilter.makeStopSet(stopWords)
-        analyzer = StandardAnalyzer(stopWordsSet)
+        # Stop words stemming
+        if using_stopwords:
+            stopWords_filename = '/Users/xiaoxinzhou/Documents/2022_classes/a1-data/stop_words.txt'
+            stopWords_file = open(stopWords_filename, 'r')
+            stopWords = [line.replace('\n','') for line in stopWords_file.readlines()]
+            stopWordsSet = StopFilter.makeStopSet(stopWords)
+            analyzer = StandardAnalyzer(stopWordsSet)
+        
+        # Porter stemming
+        if porter_stemmer:
+            analyzer = PorterStemmerAnalyzer(using_stopwords)
 
         config = IndexWriterConfig(analyzer)
         config.setOpenMode(IndexWriterConfig.OpenMode.CREATE)
         writer = IndexWriter(store, config)
 
 
-        self.indexDocs(root, writer, using_stopwords)
+        self.indexDocs(root, writer, using_stopwords, porter_stemmer)
 
 
         ticker = Ticker()
@@ -73,7 +81,7 @@ class IndexFiles(object):
         ticker.tick = False
         print ('done')
 
-    def indexDocs(self, root, writer, using_stopwords):
+    def indexDocs(self, root, writer, using_stopwords, porter_stemmer):
 
         t1 = FieldType()
         t1.setStored(True)
@@ -147,6 +155,10 @@ if __name__ == '__main__':
     if '-stop' in sys.argv:
         using_stopwords = True
 
+    porter_stemmer = False 
+    if '-porter' in sys.argv:
+        porter_stemmer = True
+
     lucene.initVM(vmargs=['-Djava.awt.headless=true'])
     print ('lucene', lucene.VERSION)
     start = datetime.now()
@@ -155,7 +167,8 @@ if __name__ == '__main__':
         IndexFiles(sys.argv[1], \
                     os.path.join(base_dir, INDEX_DIR),\
                     StandardAnalyzer(),\
-                    using_stopwords)
+                    using_stopwords,
+                    porter_stemmer)
         end = datetime.now()
         print (end - start)
     except Exception as e:

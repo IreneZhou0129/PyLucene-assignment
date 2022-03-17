@@ -67,7 +67,7 @@ def get_queries(text_file):
     
     return queries
 
-def run(searcher, analyzer, query_paths, topics, model, using_stopwords):
+def run(searcher, analyzer, query_paths, topics, model, using_stopwords, porter_stemmer):
     """
 
     :param query_paths: A list of paths. 
@@ -94,9 +94,18 @@ def run(searcher, analyzer, query_paths, topics, model, using_stopwords):
     
     fn_topics = fn['topics'][topics]
     fn_model = fn['model'][model]
-    no_stopword = '1' if not(using_stopwords) else '2'
+    # no_stopword = '1' if not(using_stopwords) else '2'
+    stemmer = 0
+    if not(using_stopwords) and not(porter_stemmer):
+        stemmer = 1
+    elif using_stopwords and not(porter_stemmer):
+        stemmer = 2
+    elif not(using_stopwords) and porter_stemmer:
+        stemmer = 3
+    elif using_stopwords and porter_stemmer:
+        stemmer = 4
 
-    result_filename = f'PyLucene-assignment/a1/{no_stopword}-{fn_topics}-{fn_model}.txt'
+    result_filename = f'PyLucene-assignment/a1/{stemmer}-{fn_topics}-{fn_model}.txt'
     f = open(result_filename, 'a')
 
     # record model statistics
@@ -157,9 +166,11 @@ def run(searcher, analyzer, query_paths, topics, model, using_stopwords):
     f.close()
 
     end = time.time()
-    print(f"Done model {model} with topics {topics}. using_stopwords-{using_stopwords} \nRunning process takes {end-start}")
+    print(f"Done model {model} with topics {topics}. using_stopwords-{using_stopwords} \n\
+            porter-stemmer-{porter_stemmer}\n\
+            Running process takes {end-start}")
     
-    model_stats.write(f'{datetime.now()}  {no_stopword}-{fn_topics}-{fn_model}        Running time: {end-start} seconds.\n')
+    model_stats.write(f'{datetime.now()}  {stemmer}-{fn_topics}-{fn_model}        Running time: {end-start} seconds.\n')
     model_stats.close()
         
 
@@ -173,9 +184,14 @@ if __name__ == '__main__':
     model = sys.argv[1]
     topics = sys.argv[2]
     INDEX_DIR = sys.argv[3]
+
     using_stopwords = False
     if '-stop' in sys.argv:
         using_stopwords = True
+
+    porter_stemmer = False 
+    if '-porter' in sys.argv:
+        porter_stemmer = True        
 
     query_paths = [f'{PATH_PREFIX}/a1-data/topics.1-50.txt',
                 f'{PATH_PREFIX}/a1-data/topics.51-100.txt',
@@ -204,5 +220,5 @@ if __name__ == '__main__':
         
     analyzer = StandardAnalyzer()
     
-    run(searcher, analyzer, query_paths, topics, model, using_stopwords)
+    run(searcher, analyzer, query_paths, topics, model, using_stopwords, porter_stemmer)
     del searcher
